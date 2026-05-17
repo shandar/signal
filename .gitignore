@@ -5,3 +5,5 @@ dist/
 ~/.signal/
 .signal/
 tokemon-ref/
+
+.claude/settings.local.json
