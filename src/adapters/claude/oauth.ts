@@ -42,10 +42,11 @@ export async function fetchUsage(accessToken: string): Promise<UsageResponse> {
   if (res.status === 401) throw new TokenExpiredError();
   if (!res.ok) throw new Error(`Claude usage API HTTP ${res.status}: ${await res.text()}`);
   const body = (await res.json()) as Record<string, unknown>;
+  type RawWindow = { utilization?: number; resets_at?: string } | undefined;
   return {
-    fiveHour: mapWindow(body.five_hour as never),
-    sevenDay: mapWindow(body.seven_day as never),
-    sevenDayOpus: mapWindow(body.seven_day_opus as never),
-    sevenDaySonnet: mapWindow(body.seven_day_sonnet as never),
+    fiveHour: mapWindow(body.five_hour as RawWindow),
+    sevenDay: mapWindow(body.seven_day as RawWindow),
+    sevenDayOpus: mapWindow(body.seven_day_opus as RawWindow),
+    sevenDaySonnet: mapWindow(body.seven_day_sonnet as RawWindow),
   };
 }

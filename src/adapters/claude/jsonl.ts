@@ -5,6 +5,10 @@ import type { UsageEvent } from '../../core/types';
 
 const PROJECTS_DIR = join(homedir(), '.claude', 'projects');
 
+// NOTE: Claude's project-dir encoding replaces every `/` with `-`, which makes hyphens
+// in path segments indistinguishable from separators (e.g., `/Users/john-doe/proj`
+// encodes to `-Users-john-doe-proj` and decodes to `/Users/john/doe/proj`). This is
+// a limitation of the encoding, not this decoder.
 export function decodeProjectDirName(name: string): string {
   if (!name.startsWith('-')) return name;
   return `/${name.slice(1).replaceAll('-', '/')}`;
@@ -31,6 +35,8 @@ export function parseClaudeSession(filePath: string, projectPath: string): Usage
     const usage = message?.usage as Record<string, unknown> | undefined;
     if (!usage) continue;
     const tsStr = json.timestamp as string | undefined;
+    // Defensive: if a line is missing `timestamp`, fall back to now. Real Claude sessions
+    // always include timestamps; this fallback only matters for corrupt logs.
     events.push({
       provider: 'claude',
       ts: tsStr ? new Date(tsStr) : new Date(),
