@@ -10,6 +10,7 @@ import {
 } from '../lib/format';
 import type { Currency } from '../lib/layout';
 import type { SignalSnapshot } from '../lib/types';
+import { LiveSessions } from './LiveSessions';
 
 // Phone-friendly widget grid. Two-column glass chips, some spanning both
 // columns for headlines. Tap-friendly, scrollable, no drag chaos.
@@ -165,6 +166,11 @@ export function DataPanelMobile({
             <div style={{ fontSize: 12, color: 'var(--dim)' }}>{formatTokens(c.tokensWindow)} tok</div>
           </div>
           <MiniBar pct={intensity} color="var(--neon-cyan)" />
+        </Chip>
+
+        {/* Live sessions — wide chip immediately under the hero */}
+        <Chip span={2} accent="rgba(111,255,138,0.3)">
+          <LiveSessions projects={c.byProject} formatMoney={formatMoney} />
         </Chip>
 
         {/* Reset countdown */}

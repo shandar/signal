@@ -12,6 +12,10 @@ export interface ProjectTotal {
   tokens: number;
   costInr: number;
   models: string[];
+  // ms epoch of the most recent event seen for this project. Drives the
+  // 'live' classification in the UI — projects whose lastTurnMs is within
+  // a small window are treated as actively running Claude Code sessions.
+  lastTurnMs: number;
 }
 
 export interface RecentTurn {
@@ -92,7 +96,10 @@ export function aggregateClaude(events: UsageEvent[], now = Date.now()): ClaudeS
   let windowStartMs = Number.POSITIVE_INFINITY;
 
   const modelMap = new Map<string, { tokens: number; costInr: number }>();
-  const projectMap = new Map<string, { tokens: number; costInr: number; models: Set<string> }>();
+  const projectMap = new Map<
+    string,
+    { tokens: number; costInr: number; models: Set<string>; lastTurnMs: number }
+  >();
 
   for (const e of unique) {
     const sum = eventTotal(e);
@@ -121,10 +128,16 @@ export function aggregateClaude(events: UsageEvent[], now = Date.now()): ClaudeS
 
     const proj = basename(e.projectPath);
     if (proj) {
-      const p = projectMap.get(proj) ?? { tokens: 0, costInr: 0, models: new Set<string>() };
+      const p = projectMap.get(proj) ?? {
+        tokens: 0,
+        costInr: 0,
+        models: new Set<string>(),
+        lastTurnMs: 0,
+      };
       p.tokens += sum;
       p.costInr += cost;
       if (e.model) p.models.add(e.model);
+      if (ts > p.lastTurnMs) p.lastTurnMs = ts;
       projectMap.set(proj, p);
     }
   }
@@ -139,6 +152,7 @@ export function aggregateClaude(events: UsageEvent[], now = Date.now()): ClaudeS
       tokens: v.tokens,
       costInr: v.costInr,
       models: [...v.models],
+      lastTurnMs: v.lastTurnMs,
     }))
     .sort((a, b) => b.tokens - a.tokens);
 

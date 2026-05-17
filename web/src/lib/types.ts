@@ -14,6 +14,17 @@ export interface ProjectTotal {
   tokens: number;
   costInr: number;
   models: string[];
+  lastTurnMs: number;
+}
+
+// Live-status classification driven by lastTurnMs freshness.
+export type ProjectStatus = 'live' | 'recent' | 'idle';
+
+export function projectStatus(lastTurnMs: number, now = Date.now()): ProjectStatus {
+  const age = now - lastTurnMs;
+  if (age < 90_000) return 'live'; // under 90s — Claude Code is actively turning
+  if (age < 5 * 60_000) return 'recent'; // under 5 min — still warm
+  return 'idle';
 }
 
 export interface RecentTurn {

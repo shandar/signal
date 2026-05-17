@@ -14,6 +14,7 @@ import {
 import { type Currency, loadCurrency, resetLayout, saveCurrency } from '../lib/layout';
 import type { SignalSnapshot } from '../lib/types';
 import { DraggableCard } from './DraggableCard';
+import { LiveSessions } from './LiveSessions';
 
 interface Props {
   snapshot: SignalSnapshot | null;
@@ -296,6 +297,14 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
           })}
         </DraggableCard>
       ) : null}
+
+      {/* LIVE SESSIONS — sits between projects and recent on the right side */}
+      <DraggableCard id="live" anchor={{ top: 360, right: 16, width: 300 }}>
+        <LiveSessions
+          projects={claude.byProject}
+          formatMoney={(r) => formatMoney(r, currency)}
+        />
+      </DraggableCard>
 
       {/* PROJECTS */}
       {claude.byProject.length > 0 ? (
