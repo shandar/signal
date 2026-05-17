@@ -2,7 +2,6 @@
 import { execFileSync } from 'node:child_process';
 import { Command } from 'commander';
 import { render } from 'ink';
-// biome-ignore lint/style/useImportType: classic JSX transform requires React as a value
 import React from 'react';
 import { ClaudeAdapter } from './adapters/claude';
 import { EventStore } from './core/EventStore';
