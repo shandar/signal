@@ -14,8 +14,15 @@ import {
 import { type Currency, loadCurrency, resetLayout, saveCurrency } from '../lib/layout';
 import type { SignalSnapshot } from '../lib/types';
 import { DraggableCard } from './DraggableCard';
-import { LiveSessions } from './LiveSessions';
 import { RunningSessions } from './RunningSessions';
+
+// Desktop dashboard. Consolidated from 8 cards down to 6:
+//   Hero (cost + session + reset)
+//   Running terminals (replaces Live Sessions + Projects)
+//   Token flow + cache savings
+//   Models breakdown
+//   Host (CPU + RAM + load + GPU)
+//   Recent turns
 
 interface Props {
   snapshot: SignalSnapshot | null;
@@ -128,11 +135,13 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
   const memColor = severityColor(memPct);
   const sessionPct = sessionProgressPct(claude.windowStartMs);
   const mood = moodFromTokens(claude.tokensWindow);
+  const cacheSavedEquivalent = claude.buckets.cacheRead * 0.9;
+  const money = (r: number): string => formatMoney(r, currency);
 
   return (
     <>
-      {/* TOP LEFT — headline cost + session */}
-      <DraggableCard id="summary" anchor={{ top: 16, left: 16, width: 320 }}>
+      {/* HERO — cost + session + reset all in one */}
+      <DraggableCard id="summary" anchor={{ top: 16, left: 16, width: 340 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
           <CardTitle>5h window</CardTitle>
           <div style={{ marginLeft: 'auto', fontSize: 11, color: indicator.color }}>
@@ -145,7 +154,7 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
             onClick={toggleCurrency}
             whileTap={{ scale: 0.92 }}
             style={{
-              fontSize: 32,
+              fontSize: 34,
               fontWeight: 700,
               color: 'var(--neon-cyan)',
               textShadow: '0 0 12px rgba(90,240,255,0.4)',
@@ -153,10 +162,11 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
               border: 0,
               padding: 0,
               cursor: 'pointer',
+              letterSpacing: -0.5,
             }}
             title="tap to toggle currency"
           >
-            {formatMoney(claude.costInr, currency)}
+            {money(claude.costInr)}
           </motion.button>
           <div style={{ fontSize: 13, color: 'var(--dim)' }}>
             {formatTokens(claude.tokensWindow)} tok
@@ -175,11 +185,14 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
           }}
         >
           <div>
-            session <span style={{ color: 'var(--neon-lime)' }}>{sessionPct.toFixed(0)}%</span>
+            session{' '}
+            <span style={{ color: 'var(--neon-lime)', fontWeight: 600 }}>
+              {sessionPct.toFixed(0)}%
+            </span>
           </div>
           <div>
             resets in{' '}
-            <span style={{ color: 'var(--neon-pink)' }}>
+            <span style={{ color: 'var(--neon-pink)', fontWeight: 600 }}>
               {formatCountdown(claude.resetsAtMs)}
             </span>{' '}
             <span>({formatClock(claude.resetsAtMs)})</span>
@@ -187,38 +200,17 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
         </div>
       </DraggableCard>
 
-      {/* TOP RIGHT — hardware */}
-      <DraggableCard id="host" anchor={{ top: 16, right: 16, width: 240 }}>
-        <CardTitle>host</CardTitle>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '36px 1fr 36px',
-            alignItems: 'center',
-            columnGap: 8,
-            rowGap: 6,
-          }}
-        >
-          <div style={{ fontSize: 11, color: 'var(--dim)' }}>cpu</div>
-          <Bar pct={hw.cpuPct} color={cpuColor} />
-          <div style={{ fontSize: 11, textAlign: 'right' }}>{hw.cpuPct.toFixed(0)}%</div>
-
-          <div style={{ fontSize: 11, color: 'var(--dim)' }}>ram</div>
-          <Bar pct={memPct} color={memColor} />
-          <div style={{ fontSize: 11, textAlign: 'right' }}>{memPct.toFixed(0)}%</div>
-
-          <div style={{ fontSize: 11, color: 'var(--dim)' }}>load</div>
-          <div style={{ gridColumn: '2 / span 2', fontSize: 11 }}>
-            {hw.load1m.toFixed(2)} · {hw.load5m.toFixed(2)} · {hw.load15m.toFixed(2)}
-            {hw.gpuPct !== null ? (
-              <span style={{ color: 'var(--dim)' }}> · gpu {hw.gpuPct.toFixed(0)}%</span>
-            ) : null}
-          </div>
-        </div>
+      {/* RUNNING TERMINALS */}
+      <DraggableCard id="running" anchor={{ top: 16, right: 16, width: 340 }}>
+        <RunningSessions
+          processes={snapshot.processes ?? []}
+          projects={claude.byProject}
+          formatMoney={money}
+        />
       </DraggableCard>
 
-      {/* TOKEN FLOW */}
-      <DraggableCard id="tokenflow" anchor={{ top: 200, left: 16, width: 320 }}>
+      {/* TOKEN FLOW + CACHE SAVINGS — combined */}
+      <DraggableCard id="tokenflow" anchor={{ top: 210, left: 16, width: 340 }}>
         <CardTitle>token flow</CardTitle>
         <div
           style={{
@@ -229,20 +221,18 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
           }}
         >
           <div>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>
-              {formatTokens(claude.buckets.input)}
-            </div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{formatTokens(claude.buckets.input)}</div>
             <div style={{ fontSize: 10, color: 'var(--dim)' }}>input</div>
           </div>
           <motion.div
             animate={{ x: [0, 6, 0] }}
             transition={{ duration: 1.6, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-            style={{ fontSize: 18, color: 'var(--neon-cyan)' }}
+            style={{ fontSize: 22, color: 'var(--neon-cyan)' }}
           >
             →
           </motion.div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--neon-cyan)' }}>
+            <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--neon-cyan)' }}>
               {formatTokens(claude.buckets.output)}
             </div>
             <div style={{ fontSize: 10, color: 'var(--dim)' }}>output</div>
@@ -261,33 +251,55 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
         >
           <div>
             cache write{' '}
-            <span style={{ color: 'var(--text)' }}>
-              {formatTokens(claude.buckets.cacheCreation)}
-            </span>
+            <span style={{ color: 'var(--text)' }}>{formatTokens(claude.buckets.cacheCreation)}</span>
           </div>
           <div>
             cache read{' '}
-            <span style={{ color: 'var(--text)' }}>{formatTokens(claude.buckets.cacheRead)}</span>
+            <span style={{ color: 'var(--neon-yellow)' }}>
+              {formatTokens(claude.buckets.cacheRead)}
+            </span>
           </div>
         </div>
+        {claude.buckets.cacheRead > 0 ? (
+          <div
+            style={{
+              marginTop: 10,
+              padding: '8px 10px',
+              background: 'rgba(192,255,0,0.05)',
+              border: '1px solid rgba(192,255,0,0.2)',
+              borderRadius: 6,
+              fontSize: 11,
+            }}
+          >
+            <span style={{ color: 'var(--neon-lime)' }}>cache savings:</span> reusing prompts saved
+            roughly{' '}
+            <span style={{ color: 'var(--neon-yellow)', fontWeight: 700 }}>
+              {formatTokens(Math.round(cacheSavedEquivalent))}
+            </span>{' '}
+            tokens of full input charges
+          </div>
+        ) : null}
       </DraggableCard>
 
-      {/* MODELS */}
+      {/* MODELS — full list with bars + cost */}
       {claude.byModel.length > 0 ? (
-        <DraggableCard id="models" anchor={{ top: 160, right: 16, width: 240 }}>
+        <DraggableCard id="models" anchor={{ top: 210, right: 16, width: 340 }}>
           <CardTitle>models</CardTitle>
-          {claude.byModel.slice(0, 4).map((m) => {
+          {claude.byModel.map((m) => {
             const topT = claude.byModel[0]?.tokens ?? 1;
             const pct = (m.tokens / topT) * 100;
             return (
-              <div key={m.model} style={{ marginBottom: 6 }}>
+              <div key={m.model} style={{ marginBottom: 8 }}>
                 <div
-                  style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 2 }}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 12,
+                    marginBottom: 3,
+                  }}
                 >
                   <span>{shortModel(m.model)}</span>
-                  <span style={{ color: 'var(--neon-lime)' }}>
-                    {formatMoney(m.costInr, currency)}
-                  </span>
+                  <span style={{ color: 'var(--neon-lime)' }}>{money(m.costInr)}</span>
                 </div>
                 <Bar pct={pct} color="var(--neon-pink)" />
                 <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 2 }}>
@@ -299,51 +311,34 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
         </DraggableCard>
       ) : null}
 
-      {/* RUNNING TERMINALS — the actual `claude` CLI processes on this host */}
-      <DraggableCard id="running" anchor={{ top: 360, right: 16, width: 320 }}>
-        <RunningSessions
-          processes={snapshot.processes ?? []}
-          projects={claude.byProject}
-          formatMoney={(r) => formatMoney(r, currency)}
-        />
+      {/* HOST */}
+      <DraggableCard id="host" anchor={{ bottom: 100, left: 16, width: 280 }}>
+        <CardTitle>host</CardTitle>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '36px 1fr 36px',
+            alignItems: 'center',
+            columnGap: 8,
+            rowGap: 6,
+          }}
+        >
+          <div style={{ fontSize: 11, color: 'var(--dim)' }}>cpu</div>
+          <Bar pct={hw.cpuPct} color={cpuColor} />
+          <div style={{ fontSize: 11, textAlign: 'right' }}>{hw.cpuPct.toFixed(0)}%</div>
+          <div style={{ fontSize: 11, color: 'var(--dim)' }}>ram</div>
+          <Bar pct={memPct} color={memColor} />
+          <div style={{ fontSize: 11, textAlign: 'right' }}>{memPct.toFixed(0)}%</div>
+        </div>
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--dim)' }}>
+          load {hw.load1m.toFixed(2)} · {hw.load5m.toFixed(2)} · {hw.load15m.toFixed(2)}
+          {hw.gpuPct !== null ? ` · gpu ${hw.gpuPct.toFixed(0)}%` : ''}
+        </div>
       </DraggableCard>
-
-      {/* LIVE SESSIONS — projects with recent JSONL turns */}
-      <DraggableCard id="live" anchor={{ bottom: 360, right: 16, width: 320 }}>
-        <LiveSessions
-          projects={claude.byProject}
-          formatMoney={(r) => formatMoney(r, currency)}
-        />
-      </DraggableCard>
-
-      {/* PROJECTS */}
-      {claude.byProject.length > 0 ? (
-        <DraggableCard id="projects" anchor={{ bottom: 80, left: 16, width: 320 }}>
-          <CardTitle>projects</CardTitle>
-          {claude.byProject.slice(0, 4).map((p) => {
-            const topT = claude.byProject[0]?.tokens ?? 1;
-            const pct = (p.tokens / topT) * 100;
-            return (
-              <div key={p.project} style={{ marginBottom: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span style={{ color: 'var(--neon-cyan)' }}>{p.project}</span>
-                  <span style={{ color: 'var(--neon-lime)' }}>
-                    {formatMoney(p.costInr, currency)}
-                  </span>
-                </div>
-                <Bar pct={pct} color="var(--neon-cyan)" />
-                <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 2 }}>
-                  {formatTokens(p.tokens)} tok · {p.models.map(shortModel).join(' ')}
-                </div>
-              </div>
-            );
-          })}
-        </DraggableCard>
-      ) : null}
 
       {/* RECENT */}
       {claude.recent.length > 0 ? (
-        <DraggableCard id="recent" anchor={{ bottom: 80, right: 16, width: 300 }}>
+        <DraggableCard id="recent" anchor={{ bottom: 100, right: 16, width: 340 }}>
           <CardTitle>recent turns</CardTitle>
           <AnimatePresence initial={false}>
             {claude.recent.slice(0, 6).map((r) => (
@@ -377,7 +372,7 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
         </DraggableCard>
       ) : null}
 
-      {/* BOTTOM CENTER — mood chip (tap = Easter egg) */}
+      {/* BOTTOM CENTER — mood chip */}
       <div
         style={{
           position: 'absolute',
@@ -414,7 +409,6 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
         </motion.button>
       </div>
 
-      {/* RESET LAYOUT — tiny button bottom-right corner */}
       <button
         type="button"
         onClick={() => {

@@ -4,7 +4,6 @@ import { DataPanel } from './components/DataPanel';
 import { DataPanelMobile } from './components/DataPanelMobile';
 import { Pager } from './components/Pager';
 import { SettingsView } from './components/SettingsView';
-import { StatsView } from './components/StatsView';
 import { Toasts } from './components/Toasts';
 import { formatInr } from './lib/format';
 import { type Currency, loadCurrency, saveCurrency } from './lib/layout';
@@ -104,7 +103,6 @@ export function App(): JSX.Element {
     </div>
   );
 
-  const statsPage = <StatsView snapshot={snapshot} />;
   const settingsPage = <SettingsView settings={settings} onChange={setSettings} />;
 
   return (
@@ -112,7 +110,6 @@ export function App(): JSX.Element {
       <Pager
         pages={[
           { id: 'tank', label: 'tank', content: tankPage },
-          { id: 'stats', label: 'stats', content: statsPage },
           { id: 'settings', label: 'settings', content: settingsPage },
         ]}
       />
