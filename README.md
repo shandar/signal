@@ -4,6 +4,8 @@ Multi-provider usage monitor for AI coding agents. **Signal, not noise.**
 
 `signal` watches your Claude Code usage and host hardware in one terminal TUI. Live token counts, cost in ₹, per-model and per-project rollups, hardware strip, plus an animated pixel-art crab that reacts to your spend. Built by [Affordance Design Studio](https://affordance.design). MIT.
 
+![signal in Terminal — pixel-art crab with full dashboard](docs/screenshots/terminal.png)
+
 > Looking for the **web tank** that runs on your phone, tablet, and external display? See the [`v2-multi-display`](https://github.com/shandar/signal/tree/v2-multi-display) branch.
 
 ## Why
