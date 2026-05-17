@@ -68,9 +68,10 @@ function Kelp({ left }: { left: number }): JSX.Element {
 interface Props {
   mood: CrabMood;
   crabXPct: number; // 0..100 — where the crab is along the floor
+  onCrabTap?: () => void;
 }
 
-export function Aquarium({ mood, crabXPct }: Props): JSX.Element {
+export function Aquarium({ mood, crabXPct, onCrabTap }: Props): JSX.Element {
   // Stable random bubble layout per mount.
   const bubbles = useMemo(
     () =>
@@ -141,13 +142,16 @@ export function Aquarium({ mood, crabXPct }: Props): JSX.Element {
         }}
       />
 
-      {/* Crab — slides along the floor with mood-aware speed */}
+      {/* Crab — slides along the floor with mood-aware speed. The motion.div
+          is non-interactive so the button inside catches taps cleanly. */}
       <motion.div
-        style={{ position: 'absolute', bottom: 18, pointerEvents: 'none' }}
+        style={{ position: 'absolute', bottom: 18, pointerEvents: 'none', zIndex: 4 }}
         animate={{ left: `calc(${crabXPct}% - 96px)` }}
         transition={{ type: 'spring', stiffness: 30, damping: 18 }}
       >
-        <Crab mood={mood} scale={6} />
+        <div style={{ pointerEvents: 'auto' }}>
+          <Crab mood={mood} scale={6} onTap={onCrabTap} />
+        </div>
       </motion.div>
     </div>
   );
