@@ -63,14 +63,19 @@ export function Pager({ pages, initialIndex = 0 }: PagerProps): JSX.Element {
         dragConstraints={{ left: -(totalWidth - width), right: 0 }}
         dragElastic={0.12}
         dragMomentum={false}
-        onDragEnd={handleDragEnd}
+        // Tell the browser to handle vertical pan itself — framer-motion's
+        // default `touch-action: none` blocks scrolling inside the pages.
+        // With `pan-y`, only horizontal gestures reach the drag handler.
+        dragDirectionLock
         style={{
           display: 'flex',
           width: totalWidth,
           height: '100%',
           x,
           cursor: 'grab',
+          touchAction: 'pan-y',
         }}
+        onDragEnd={handleDragEnd}
         whileDrag={{ cursor: 'grabbing' }}
         transition={{ type: 'spring', stiffness: 300, damping: 32 }}
       >
