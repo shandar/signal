@@ -169,27 +169,30 @@ export function Aquarium({
     return () => clearInterval(id);
   }, [food, autonomousXPct, mood, soundsEnabled, onFoodEaten]);
 
-  // Footstep audio. Plays a soft tap while the crab is actually moving;
-  // step rate follows the mood walk speed. A small movement threshold
-  // (0.25%) prevents ticks when the crab is just settling on a target.
-  const crabXRef = useRef(crabXPct);
+  // Footstep audio — synced to actual leg movement instead of a wall clock.
+  // We accumulate horizontal distance the crab has traveled; every time it
+  // crosses a per-step threshold we fire one tick. Faster crab = more ticks
+  // per second; stationary crab = silence. This naturally matches the SVG
+  // animation's visible leg movement without us having to peek inside its
+  // own CSS keyframes.
+  const stepAccumRef = useRef(0);
+  const prevXRef = useRef(crabXPct);
   useEffect(() => {
-    crabXRef.current = crabXPct;
-  }, [crabXPct]);
-  useEffect(() => {
-    if (!soundsEnabled) return;
-    const stepMs =
-      mood === 'burning' ? 200 : mood === 'cooking' ? 300 : mood === 'focused' ? 420 : 720;
-    let lastX = crabXRef.current;
-    const id = setInterval(() => {
-      const x = crabXRef.current;
-      if (Math.abs(x - lastX) > 0.25) {
-        playFootstep();
-      }
-      lastX = x;
-    }, stepMs);
-    return () => clearInterval(id);
-  }, [mood, soundsEnabled]);
+    if (!soundsEnabled) {
+      stepAccumRef.current = 0;
+      return;
+    }
+    const STEP_DISTANCE_PCT = 2.2; // one tick per ~2.2% of viewport traveled
+    const dx = Math.abs(crabXPct - prevXRef.current);
+    prevXRef.current = crabXPct;
+    // Don't accumulate tiny noise / spring overshoot.
+    if (dx < 0.05) return;
+    stepAccumRef.current += dx;
+    while (stepAccumRef.current >= STEP_DISTANCE_PCT) {
+      playFootstep();
+      stepAccumRef.current -= STEP_DISTANCE_PCT;
+    }
+  }, [crabXPct, soundsEnabled]);
 
   // Mark food as landed once their fall animation should be done (~600ms).
   useEffect(() => {

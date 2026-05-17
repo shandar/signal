@@ -4,6 +4,7 @@ import { DataPanel } from './components/DataPanel';
 import { DataPanelMobile } from './components/DataPanelMobile';
 import { Pager } from './components/Pager';
 import { SettingsView } from './components/SettingsView';
+import { SoundToggle } from './components/SoundToggle';
 import { Toasts } from './components/Toasts';
 import { formatInr } from './lib/format';
 import { type Currency, loadCurrency, saveCurrency } from './lib/layout';
@@ -106,6 +107,17 @@ export function App(): JSX.Element {
 
   const settingsPage = <SettingsView settings={settings} onChange={setSettings} />;
 
+  const updateSounds = (next: boolean): void => {
+    const merged = { ...settings, soundsEnabled: next };
+    setSettings(merged);
+    // Persist so the toggle survives reloads (mirrors SettingsView's save path).
+    try {
+      window.localStorage.setItem('signal:settings:v1', JSON.stringify(merged));
+    } catch {
+      /* ignore */
+    }
+  };
+
   return (
     <>
       <Pager
@@ -115,6 +127,7 @@ export function App(): JSX.Element {
         ]}
       />
       <Toasts toasts={toasts} onDismiss={dismiss} />
+      <SoundToggle enabled={settings.soundsEnabled} onToggle={updateSounds} />
     </>
   );
 }

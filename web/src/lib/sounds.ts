@@ -37,28 +37,45 @@ export function isAudioReady(): boolean {
   return !!ctx && ctx.state === 'running';
 }
 
-// Soft muffled tap. Pitch jitters per step so consecutive footsteps don't
-// sound robotic. Volume defaults to barely-audible — meant to feel ambient.
-export function playFootstep(volume = 0.035): void {
+// Tiny chitin-on-rock "tk". Built as a brief noise burst through a
+// narrow bandpass around 2 kHz, with a ~30ms exponential decay so it
+// sounds tight and high — not bass-y. Frequency jitter per step keeps
+// consecutive ticks from feeling mechanical.
+export function playFootstep(volume = 0.045): void {
   const ctx = getCtx();
   if (!ctx || ctx.state !== 'running') return;
   const now = ctx.currentTime;
-  const osc = ctx.createOscillator();
+  const durSec = 0.045;
+  // Generate a one-shot noise buffer.
+  const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * durSec), ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+
+  // Bandpass to shape the burst into a tap. Slight per-tick frequency
+  // variance keeps it organic.
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = 2000 + Math.random() * 600;
+  bp.Q.value = 7;
+
+  // Roll off any remaining low rumble so it really doesn't bass-thud.
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 1200;
+
   const gain = ctx.createGain();
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.value = 700 + Math.random() * 200;
-  filter.Q.value = 1;
-  osc.type = 'sine';
-  osc.frequency.value = 160 + Math.random() * 80;
   gain.gain.setValueAtTime(0, now);
-  gain.gain.linearRampToValueAtTime(volume, now + 0.004);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
-  osc.connect(filter);
-  filter.connect(gain);
+  gain.gain.linearRampToValueAtTime(volume, now + 0.002);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + durSec);
+
+  src.connect(bp);
+  bp.connect(hp);
+  hp.connect(gain);
   gain.connect(ctx.destination);
-  osc.start(now);
-  osc.stop(now + 0.08);
+  src.start(now);
+  src.stop(now + durSec + 0.01);
 }
 
 // Sparkle on eat — short 2-tone chime.
