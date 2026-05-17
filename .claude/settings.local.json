@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api *)",
+      "Bash(git clone *)",
+      "Bash(ls /Users/tester/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/subagent-driven-development/)",
+      "Bash(bun --version)",
+      "Bash(bun pm *)",
+      "Bash(npm show *)"
+    ]
+  }
+}
