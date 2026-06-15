@@ -8,6 +8,36 @@ This branch starts where `main` ends (currently `82afc68`, the clawd-port commit
 
 ## Unreleased — phone + tablet + browser web tank
 
+### Multi-provider (Codex)
+
+#### `<HEAD>` — feat(codex): multi-provider adapter, wire, pricing, UI, doctor
+- New `src/adapters/codex/` (jsonl.ts + index.ts) parses Codex CLI session
+  logs at `~/.codex/sessions/<Y>/<M>/<D>/rollout-*.jsonl` and emits one
+  UsageEvent per `event_msg.token_count` record; model attribution via the
+  latest `turn_context.model` the parser has seen.
+- No OAuth dance — Codex bakes rate-limit data into the JSONL records
+  themselves. Just walk the directory and you have everything (5h + 7d
+  windows, `used_percent`, `resets_at`, `plan_type`).
+- `UsageEvent.reasoningOutputTokens?` added for hidden o-series / gpt-5
+  reasoning tokens; EventStore migration v2 adds the column.
+- `Aggregator.aggregateProvider(events, { provider, displayName })` is now
+  the canonical name (aggregateClaude kept as a thin alias). Reasoning
+  tokens tracked separately on ProviderSummary; folded into output for
+  cost calculation (Codex bills at output rate).
+- `Pricing.ts` extended with GPT-5/Codex, o3, o4-mini, GPT-4o rate tables.
+- Daemon snapshot envelope now `{ providers: { claude?, codex? }, claude
+  (legacy), processes, hardware }` — backward-compat top-level `claude`
+  field preserved.
+- `Processes.detectCodexCliInstances()` finds `codex` CLI processes via
+  pgrep + lsof, tagged with `provider` field.
+- New web `ProviderSwitcher` floating pill (top-left) shown when 2+
+  providers have data; single-provider scenarios render exactly like
+  before.
+- `signal doctor` reports both providers separately with detection +
+  recent-event count for Codex; exits 0 if any provider works.
+- 4 new jsonl parser tests (real anonymized fixture + synthetic
+  malformed). All 25 tests green; lint + tsc clean.
+
 ### Scaffolding & daemon
 
 #### `dfc160d` — feat(v2): web aquarium UI served by `signal serve` daemon

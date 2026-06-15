@@ -2,8 +2,8 @@
 
 > **What this is**: a working snapshot so you can pick up the branch cold months from now. Read top-to-bottom in 90 seconds.
 
-**Last updated**: 2026-05-17
-**Last commit**: `81f9b93` docs(v2): re-crop the web tank screenshot
+**Last updated**: 2026-05-18
+**Last commit**: feat(codex): multi-provider adapter, wire, pricing, UI, doctor
 **Tag**: untagged (v0.2.0 planned)
 **Parent**: branched from `main` at `82afc68` (clawd port commit)
 
@@ -29,6 +29,10 @@ Run `signal serve` from this branch and you get all of this:
 - **Mobile widget grid** — 7 chips, some expandable (Models, Recent Turns)
 - **Cache-savings call-out** inside the Token Flow chip
 - **Connection state visible** — green live / amber stale / red offline
+- **Multi-provider** — both Claude Code and OpenAI Codex CLI sessions are
+  detected and rendered. A floating provider-switcher pill (top-left)
+  appears when both have data; single-provider users see the data
+  rendered exactly like before. `signal doctor` reports both.
 
 ## Architecture in one diagram
 
@@ -118,7 +122,7 @@ In rough priority order. Pick any item; each is roughly its own session.
 
 ### Multi-provider
 
-5. **Codex adapter** — parse `~/.codex/sessions/*.jsonl`. Field shape verification first, then ClaudeAdapter-equivalent. ~1-2 sessions.
+5. ~~**Codex adapter**~~ — ✅ shipped 2026-05-18 (see CHANGELOG).
 6. **Cursor adapter** — `~/Library/Application Support/Cursor/User/globalStorage/state.vscdb` (SQLite). ~2 sessions (SQLite schema varies between Cursor versions).
 7. **Gemini CLI adapter** — `~/.gemini/` log format check, then adapter. ~1 session.
 8. **GitHub Copilot adapter** — no local logs; needs `gh auth token` + Copilot billing endpoints. Experimental flag, may slip to v1.2. ~2 sessions.

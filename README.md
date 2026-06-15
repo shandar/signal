@@ -11,12 +11,47 @@ Multi-provider usage monitor for AI coding agents. **Signal, not noise.**
 
 ![signal web tank — animated clawd crab walking under glass data panels](docs/screenshots/web.png)
 
+## For Codex testers
+
+If you use [OpenAI Codex CLI](https://github.com/openai/codex) and want to try signal on your data:
+
+```bash
+# Clone + build (only requires Bun — get it from https://bun.sh)
+git clone https://github.com/shandar/signal.git
+cd signal
+git checkout v2-multi-display
+bun install
+cd web && bun install && bun run build && cd ..
+bun run compile
+
+# Run it
+./dist/signal serve
+# Open the URL it prints (http://localhost:8787 + the LAN URL for your phone)
+```
+
+On boot the daemon prints which providers it found:
+
+```
+providers: ● Claude   ● Codex
+```
+
+If only Codex is detected (typical Codex-only tester), you'll see your Codex sessions, models, projects, recent turns, and 5h-window cost in ₹. The web tank renders your data exactly the same way Claude users see theirs. **No keychain prompts, no auth setup** — Codex bakes its rate-limit data into the JSONL session logs already on your disk.
+
+What `signal` reads:
+- `~/.codex/sessions/<Y>/<M>/<D>/rollout-*.jsonl` — session events, token counts, rate limits
+- `ps -ef` + `lsof` — running `codex` CLI processes by working directory (so you see *which terminals* are alive)
+
+Nothing leaves your machine. No telemetry, no accounts, no API keys.
+
+When you spot something off or missing, file an issue at [github.com/shandar/signal/issues](https://github.com/shandar/signal/issues) — paste the output of `./dist/signal doctor` and a brief description.
+
 ## What's in v2
 
+- **Multi-provider** — both Claude Code and OpenAI Codex CLI sessions in one dashboard. Floating provider-switcher pill when both have data; single-provider users see their data exactly like before. No OAuth dance for Codex (rate limits ship inside the JSONL).
 - **Web tank UI** — animated pixel-art aquarium with [Marcio Granzotto's clawd-tank](https://github.com/marciogranzotto/clawd-tank) crab (MIT). Mood states drive the crab's animation: chill → focused → cooking → on-fire as your 5h token spend climbs.
 - **Multi-surface** — one web bundle, four surfaces: phone / tablet / browser / external display. Future: Tauri menu-bar and borderless desktop window (planned).
-- **Live data over WebSocket** — every Claude Code turn pushes to all connected clients within ~250ms (via `fs.watch` on `~/.claude/projects`).
-- **Running terminals detector** — finds every active `claude` CLI process by working directory and groups subagent children. See which projects are *actually* alive right now, not just which have written events recently.
+- **Live data over WebSocket** — every Claude or Codex turn pushes to all connected clients within ~250ms (via `fs.watch` + per-provider polling).
+- **Running terminals detector** — finds every active `claude` and `codex` CLI process by working directory and groups subagent children. See which projects are *actually* alive right now, tagged by provider.
 - **Token-flow + cache savings** — input → output flow with cache-write / cache-read split. Quantifies prompt-cache savings against full-input pricing.
 - **Mini-game** — tap the water on the tank page; food drops, crab walks over, eats with a sparkle. Synthesized footstep / splash / sparkle audio (no asset files).
 - **INR-first cost** — Indian lakh/crore-style grouping. Tap the headline to flip to USD.
