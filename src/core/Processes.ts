@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import type { ProviderId } from './types';
 
@@ -140,7 +141,19 @@ export function detectCodexCliInstances(): ClaudeCliInstance[] {
 
 // ── Aggregate detector ────────────────────────────────────────────────────
 
-/** Detect all known coding-agent CLI processes, tagged by provider. */
+/** Detect all known coding-agent CLI processes, tagged by provider.
+ *  When SIGNAL_DEMO_PROCESSES points to a JSON file, returns that file's
+ *  contents verbatim instead of running pgrep. Useful for screenshots,
+ *  tests, and any context where a deterministic process list matters more
+ *  than what's actually running on the host. */
 export function detectAllCliInstances(): ClaudeCliInstance[] {
+  const demoFile = process.env.SIGNAL_DEMO_PROCESSES;
+  if (demoFile) {
+    try {
+      return JSON.parse(readFileSync(demoFile, 'utf-8'));
+    } catch {
+      // Bad fixture path / malformed JSON → fall through to live detection.
+    }
+  }
   return [...detectClaudeCliInstances(), ...detectCodexCliInstances()];
 }

@@ -7,11 +7,7 @@ import { type ProviderSummary, aggregateProvider } from '../core/Aggregator';
 import { EventStore } from '../core/EventStore';
 import { HardwareSampler } from '../core/HardwareSampler';
 import { PollScheduler } from '../core/PollScheduler';
-import {
-  type ClaudeCliInstance,
-  detectClaudeCliInstances,
-  detectCodexCliInstances,
-} from '../core/Processes';
+import { type ClaudeCliInstance, detectAllCliInstances } from '../core/Processes';
 import { ProviderRegistry } from '../core/ProviderRegistry';
 import { loadConfig, writeDefaultConfig } from '../core/config';
 import type { ProviderId } from '../core/types';
@@ -125,10 +121,8 @@ export async function runServe(opts: ServeOptions = {}): Promise<void> {
     store.appendHwSample(hw);
 
     // Combined process list — Claude + Codex CLI instances.
-    const processes: ClaudeCliInstance[] = [
-      ...detectClaudeCliInstances(),
-      ...detectCodexCliInstances(),
-    ];
+    // (Routes through detectAllCliInstances so SIGNAL_DEMO_PROCESSES can stub.)
+    const processes: ClaudeCliInstance[] = detectAllCliInstances();
 
     return JSON.stringify({
       generatedAt: Date.now(),
