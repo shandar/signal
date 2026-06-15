@@ -87,7 +87,7 @@ All web code under `web/`. All daemon code under `src/`. Same `web/dist/` bundle
 ## Resuming after a break
 
 ```bash
-cd "/Users/tester/Downloads/Token Monitor"
+cd "<repo>"
 git checkout v2-multi-display
 bun install                # in case deps changed
 cd web && bun install      # web deps separately

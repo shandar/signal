@@ -11,3 +11,6 @@ web/src/**/*.js
 web/tsconfig.tsbuildinfo
 
 .claude/settings.local.json
+
+# Internal product planning — not for the public repo
+docs/superpowers/
