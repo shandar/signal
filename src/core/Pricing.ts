@@ -1,8 +1,10 @@
-// Anthropic API pricing, USD per million tokens. These are approximations
-// for the current Claude 4.x family — exact rates depend on the model and
-// Anthropic's published price list. See https://www.anthropic.com/pricing.
-// Cache-read is dramatically cheaper than first-write, which is why a busy
-// agent session can look terrifying in raw tokens but cheap in actual ₹.
+// Model pricing, USD per million tokens. Covers Anthropic's Claude family
+// and OpenAI's Codex / GPT family. Cache-read is dramatically cheaper than
+// first-write on both providers, which is why a busy agent session can look
+// terrifying in raw tokens but cheap in actual ₹.
+//
+// Anthropic: https://www.anthropic.com/pricing
+// OpenAI:    https://openai.com/api/pricing
 
 export interface ModelPrice {
   inputPerMTokUsd: number;
@@ -10,6 +12,8 @@ export interface ModelPrice {
   cacheWritePerMTokUsd: number;
   cacheReadPerMTokUsd: number;
 }
+
+// ── Anthropic ──────────────────────────────────────────────────────────────
 
 const OPUS: ModelPrice = {
   inputPerMTokUsd: 15,
@@ -32,11 +36,57 @@ const HAIKU: ModelPrice = {
   cacheReadPerMTokUsd: 0.1,
 };
 
+// ── OpenAI (Codex / GPT) ───────────────────────────────────────────────────
+// Reasoning tokens (o-series / gpt-5) are billed at the output rate by the
+// API; we fold them into the output bucket in Aggregator.ts, so these
+// `outputPerMTokUsd` values cover both visible output and reasoning.
+
+const GPT5_CODEX: ModelPrice = {
+  // GPT-5 family (Codex defaults to gpt-5.4 / gpt-5-codex variants).
+  // $1.25 in / $10 out per MTok with cached input at $0.125.
+  inputPerMTokUsd: 1.25,
+  outputPerMTokUsd: 10,
+  cacheWritePerMTokUsd: 1.25,
+  cacheReadPerMTokUsd: 0.125,
+};
+
+const O3: ModelPrice = {
+  // o3 reasoning model — premium tier.
+  inputPerMTokUsd: 2,
+  outputPerMTokUsd: 8,
+  cacheWritePerMTokUsd: 2,
+  cacheReadPerMTokUsd: 0.5,
+};
+
+const O4_MINI: ModelPrice = {
+  // o4-mini — cheaper reasoning option, popular default for Codex.
+  inputPerMTokUsd: 1.1,
+  outputPerMTokUsd: 4.4,
+  cacheWritePerMTokUsd: 1.1,
+  cacheReadPerMTokUsd: 0.275,
+};
+
+const GPT4O: ModelPrice = {
+  // GPT-4o — non-reasoning workhorse.
+  inputPerMTokUsd: 2.5,
+  outputPerMTokUsd: 10,
+  cacheWritePerMTokUsd: 2.5,
+  cacheReadPerMTokUsd: 1.25,
+};
+
 export function priceFor(model: string | null): ModelPrice {
   const m = (model ?? '').toLowerCase();
+  // Anthropic
   if (m.includes('opus')) return OPUS;
   if (m.includes('haiku')) return HAIKU;
-  // Default everything else (including unknown) to Sonnet — the workhorse.
+  if (m.includes('sonnet')) return SONNET;
+  // OpenAI / Codex
+  if (m.includes('gpt-5') || m.includes('codex')) return GPT5_CODEX;
+  if (m.includes('o4-mini') || m.includes('o4_mini')) return O4_MINI;
+  if (m.includes('o3')) return O3;
+  if (m.includes('gpt-4o') || m.includes('gpt4o')) return GPT4O;
+  // Default everything unknown to Sonnet — the workhorse — for backward
+  // compatibility with the original Claude-only pricing.
   return SONNET;
 }
 

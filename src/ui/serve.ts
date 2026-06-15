@@ -2,13 +2,19 @@ import { existsSync, statSync, watch } from 'node:fs';
 import { homedir, networkInterfaces } from 'node:os';
 import { join, normalize, resolve } from 'node:path';
 import { ClaudeAdapter } from '../adapters/claude';
-import { aggregateClaude } from '../core/Aggregator';
+import { CodexAdapter } from '../adapters/codex';
+import { type ProviderSummary, aggregateProvider } from '../core/Aggregator';
 import { EventStore } from '../core/EventStore';
 import { HardwareSampler } from '../core/HardwareSampler';
 import { PollScheduler } from '../core/PollScheduler';
-import { detectClaudeCliInstances } from '../core/Processes';
+import {
+  type ClaudeCliInstance,
+  detectClaudeCliInstances,
+  detectCodexCliInstances,
+} from '../core/Processes';
 import { ProviderRegistry } from '../core/ProviderRegistry';
 import { loadConfig, writeDefaultConfig } from '../core/config';
+import type { ProviderId } from '../core/types';
 
 // Resolve the web UI's built static files. In development we ship the Vite
 // dev server separately; in production the daemon serves web/dist directly.
@@ -64,9 +70,18 @@ export async function runServe(opts: ServeOptions = {}): Promise<void> {
   const store = new EventStore(cfg.dbPath);
   const registry = new ProviderRegistry();
   registry.register(new ClaudeAdapter({ useOauth: cfg.claude.useOauth }));
+  // Codex is always registered — its adapter no-ops gracefully on machines
+  // without `~/.codex/sessions/`.
+  registry.register(new CodexAdapter());
   const scheduler = new PollScheduler(store);
   for (const a of registry.list()) scheduler.add(a);
   scheduler.start();
+
+  // Print provider detection summary so the user / tester sees what was found.
+  const claudeAdapter = registry.get('claude');
+  const codexAdapter = registry.get('codex');
+  const claudeOk = claudeAdapter ? await claudeAdapter.detect() : false;
+  const codexOk = codexAdapter ? await codexAdapter.detect() : false;
 
   const sampler = new HardwareSampler({ useSystemInformation: cfg.hardware.useSystemInformation });
   const distDir = findWebDist();
@@ -89,26 +104,43 @@ export async function runServe(opts: ServeOptions = {}): Promise<void> {
     }
   }
 
+  /** Build a wire-safe summary for one provider (ms-epoch timestamps in recent). */
+  function summarizeProvider(id: ProviderId, displayName: string): ProviderSummary | null {
+    const adapter = registry.get(id);
+    if (!adapter) return null;
+    const events = store.latestEvents(adapter.id, 500);
+    if (events.length === 0) return null;
+    return aggregateProvider(events, { provider: id, displayName });
+  }
+
+  function toWire(summary: ProviderSummary | null): unknown {
+    if (!summary) return null;
+    return { ...summary, recent: summary.recent.map((r) => ({ ...r, ts: r.ts.getTime() })) };
+  }
+
   async function snapshot(): Promise<string> {
-    const claude = registry.get('claude');
-    const summary = claude ? aggregateClaude(store.latestEvents(claude.id, 500)) : null;
+    const claudeSummary = summarizeProvider('claude', 'Claude Code');
+    const codexSummary = summarizeProvider('codex', 'Codex');
     const hw = await sampler.sample();
     store.appendHwSample(hw);
-    // Normalize all timestamps to ms-epoch numbers for wire transport. Date
-    // objects auto-serialize to ISO strings, which the web client expects to
-    // be numbers for `Date.now() - r.ts` math.
-    const claudeWire = summary
-      ? {
-          ...summary,
-          recent: summary.recent.map((r) => ({ ...r, ts: r.ts.getTime() })),
-        }
-      : null;
+
+    // Combined process list — Claude + Codex CLI instances.
+    const processes: ClaudeCliInstance[] = [
+      ...detectClaudeCliInstances(),
+      ...detectCodexCliInstances(),
+    ];
+
     return JSON.stringify({
       generatedAt: Date.now(),
-      claude: claudeWire,
-      // Live process detection — what `claude` CLI instances are currently
-      // running, by working directory. Independent of JSONL freshness.
-      processes: detectClaudeCliInstances(),
+      // New multi-provider envelope. Web reads `providers` going forward.
+      providers: {
+        claude: toWire(claudeSummary),
+        codex: toWire(codexSummary),
+      },
+      // Backward-compat: keep top-level `claude` for any web client that
+      // still expects it. Will be removed in a future cleanup.
+      claude: toWire(claudeSummary),
+      processes,
       hardware: {
         cpuPct: hw.cpuPct,
         cpuPerCore: hw.cpuPerCore,
@@ -215,6 +247,12 @@ export async function runServe(opts: ServeOptions = {}): Promise<void> {
   } else {
     console.log('  serving: (no web/dist found — UI requests will 503)');
   }
+  // Provider detection summary — useful for first-time testers to see at a
+  // glance whether their CLI was discovered.
+  const provLine: string[] = [];
+  provLine.push(claudeOk ? '● Claude' : '○ Claude (no ~/.claude/projects/)');
+  provLine.push(codexOk ? '● Codex' : '○ Codex (no ~/.codex/sessions/)');
+  console.log(`  providers: ${provLine.join('   ')}`);
   console.log('  ws:      /ws       json: /api/snapshot       health: /api/health');
   console.log('\n  ctrl+c to stop.\n');
 

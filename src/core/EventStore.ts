@@ -51,7 +51,17 @@ CREATE TABLE hw_samples (
 CREATE INDEX idx_hw_samples_ts ON hw_samples(ts DESC);
 `;
 
-const MIGRATIONS: { version: number; sql: string }[] = [{ version: 1, sql: MIGRATION_001 }];
+// v2: add reasoning_output_tokens for o-series / gpt-5 reasoning models.
+// Codex emits this as a separate billable bucket; Claude historically does not.
+const MIGRATION_002 = `
+ALTER TABLE events ADD COLUMN reasoning_output_tokens INTEGER NOT NULL DEFAULT 0;
+UPDATE schema_version SET version = 2;
+`;
+
+const MIGRATIONS: { version: number; sql: string }[] = [
+  { version: 1, sql: MIGRATION_001 },
+  { version: 2, sql: MIGRATION_002 },
+];
 
 export interface ProviderState {
   lastPollAt: Date | null;
@@ -84,8 +94,9 @@ export class EventStore {
   appendEvents(events: UsageEvent[]): void {
     const stmt = this.db.prepare(`
       INSERT INTO events (provider, ts, model, input_tokens, output_tokens,
-        cache_creation_tokens, cache_read_tokens, session_id, project_path, raw_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        cache_creation_tokens, cache_read_tokens, reasoning_output_tokens,
+        session_id, project_path, raw_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const insert = this.db.transaction((batch: UsageEvent[]) => {
       for (const e of batch) {
@@ -97,6 +108,7 @@ export class EventStore {
           e.outputTokens,
           e.cacheCreationTokens,
           e.cacheReadTokens,
+          e.reasoningOutputTokens ?? 0,
           e.sessionId,
           e.projectPath,
           JSON.stringify(e.raw),
@@ -121,6 +133,7 @@ export class EventStore {
     outputTokens: r.output_tokens as number,
     cacheCreationTokens: r.cache_creation_tokens as number,
     cacheReadTokens: r.cache_read_tokens as number,
+    reasoningOutputTokens: (r.reasoning_output_tokens as number | undefined) ?? 0,
     sessionId: (r.session_id as string | null) ?? null,
     projectPath: (r.project_path as string | null) ?? null,
     raw: JSON.parse((r.raw_json as string) ?? 'null'),

@@ -8,6 +8,9 @@ export interface UsageEvent {
   outputTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
+  /** Hidden reasoning tokens emitted by o-series / gpt-5 models. Optional —
+   *  pre-reasoning models (Claude legacy, gpt-4o) report 0 or null. */
+  reasoningOutputTokens?: number;
   sessionId: string | null;
   projectPath: string | null;
   raw: unknown;

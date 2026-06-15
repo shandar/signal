@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Aquarium } from './components/Aquarium';
 import { DataPanel } from './components/DataPanel';
 import { DataPanelMobile } from './components/DataPanelMobile';
 import { Pager } from './components/Pager';
+import { ProviderSwitcher } from './components/ProviderSwitcher';
 import { SettingsView } from './components/SettingsView';
 import { SoundToggle } from './components/SoundToggle';
 import { Toasts } from './components/Toasts';
 import { formatInr } from './lib/format';
 import { type Currency, loadCurrency, saveCurrency } from './lib/layout';
+import { activeProviders, pickPrimaryProvider } from './lib/providers';
 import { type UserSettings, loadSettings, moodFromTokensWithSettings } from './lib/settings';
-import type { CrabMood } from './lib/types';
+import type { CrabMood, ProviderId, SignalSnapshot } from './lib/types';
 import { useMediaQuery } from './lib/useMediaQuery';
 import { useNotifications } from './lib/useNotifications';
 import { useSignal } from './lib/useSignal';
@@ -45,11 +47,28 @@ export function App(): JSX.Element {
     saveCurrency(next);
   };
 
-  // Crab mood — data-driven, with thresholds from settings, and a user
-  // override that lasts 8s.
+  // Multi-provider: pick the user's selected provider, or the dominant one.
+  const allProviders = useMemo(() => activeProviders(snapshot), [snapshot]);
+  const [providerOverride, setProviderOverride] = useState<ProviderId | null>(null);
+  const primary = useMemo(
+    () => pickPrimaryProvider(snapshot, providerOverride ?? undefined),
+    [snapshot, providerOverride],
+  );
+  // The existing DataPanel components read `snapshot.claude.*`. Build a
+  // back-compat view that mirrors the chosen provider into that slot so we
+  // don't have to rewrite every chip in this pass. New components going
+  // forward should read `snapshot.providers[id]` directly.
+  const adaptedSnapshot: SignalSnapshot | null = useMemo(() => {
+    if (!snapshot) return null;
+    if (!primary) return snapshot;
+    return { ...snapshot, claude: primary };
+  }, [snapshot, primary]);
+
+  // Combined-mood: use the dominant provider's spend so the crab heats up
+  // for whichever agent is most active.
   const [overrideMood, setOverrideMood] = useState<CrabMood | null>(null);
-  const dataMood: CrabMood = snapshot
-    ? moodFromTokensWithSettings(snapshot.claude.tokensWindow, settings.moodThresholds)
+  const dataMood: CrabMood = primary
+    ? moodFromTokensWithSettings(primary.tokensWindow, settings.moodThresholds)
     : 'chill';
   const mood: CrabMood = overrideMood ?? dataMood;
   useEffect(() => {
@@ -86,7 +105,7 @@ export function App(): JSX.Element {
       />
       {isMobile ? (
         <DataPanelMobile
-          snapshot={snapshot}
+          snapshot={adaptedSnapshot}
           connected={connected}
           staleMs={staleMs}
           currency={currency}
@@ -96,7 +115,7 @@ export function App(): JSX.Element {
         />
       ) : (
         <DataPanel
-          snapshot={snapshot}
+          snapshot={adaptedSnapshot}
           connected={connected}
           staleMs={staleMs}
           onMoodHack={cycleMood}
@@ -128,6 +147,12 @@ export function App(): JSX.Element {
       />
       <Toasts toasts={toasts} onDismiss={dismiss} />
       <SoundToggle enabled={settings.soundsEnabled} onToggle={updateSounds} />
+      <ProviderSwitcher
+        providers={allProviders}
+        selectedId={primary?.provider ?? null}
+        onSelect={(id) => setProviderOverride(id as ProviderId)}
+        formatMoney={formatMoney}
+      />
     </>
   );
 }

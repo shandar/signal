@@ -36,9 +36,15 @@ export interface RecentTurn {
   project: string;
 }
 
-export interface ClaudeSummary {
+export type ProviderId = 'claude' | 'codex' | 'cursor' | 'gemini' | 'copilot';
+
+export interface ProviderSummary {
+  provider: ProviderId;
+  displayName: string;
   tokensWindow: number;
   buckets: { input: number; output: number; cacheCreation: number; cacheRead: number };
+  /** Hidden reasoning tokens (o-series / gpt-5). Optional for backward compat. */
+  reasoningTokens?: number;
   costInr: number;
   windowStartMs: number | null;
   resetsAtMs: number | null;
@@ -49,6 +55,9 @@ export interface ClaudeSummary {
   currentModel: string | null;
   latestAgeMs: number | null;
 }
+
+/** Back-compat alias — legacy single-provider name. */
+export type ClaudeSummary = ProviderSummary;
 
 export interface HwSnapshot {
   cpuPct: number;
@@ -62,6 +71,8 @@ export interface HwSnapshot {
 }
 
 export interface ClaudeCliInstance {
+  /** Which agent — added in v2 multi-provider. Optional for back-compat. */
+  provider?: ProviderId;
   cwd: string;
   project: string;
   pids: number[];
@@ -70,6 +81,10 @@ export interface ClaudeCliInstance {
 
 export interface SignalSnapshot {
   generatedAt: number;
+  /** Multi-provider envelope (v2). Each provider that's installed gets a key. */
+  providers?: Partial<Record<ProviderId, ProviderSummary | null>>;
+  /** Back-compat: top-level Claude summary. The web prefers `providers.claude`
+   *  when present and falls back to this for older daemons. */
   claude: ClaudeSummary;
   processes: ClaudeCliInstance[];
   hardware: HwSnapshot;

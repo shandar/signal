@@ -1,14 +1,36 @@
 import { Box, Text, render } from 'ink';
 import React from 'react';
 import { ClaudeAdapter } from '../adapters/claude';
+import { CodexAdapter } from '../adapters/codex';
 import { HardwareSampler } from '../core/HardwareSampler';
 import { configPath, loadConfig } from '../core/config';
 
 export async function runDoctor(): Promise<number> {
   const cfg = loadConfig();
+
+  // Claude
   const claude = new ClaudeAdapter({ useOauth: cfg.claude.useOauth });
-  const detected = await claude.detect();
-  const auth = await claude.authStatus();
+  const claudeDetected = await claude.detect();
+  const claudeAuth = await claude.authStatus();
+  const claudeMode = cfg.claude.useOauth ? 'OAuth (exact %)' : 'JSONL (tokens, no keychain access)';
+  const claudeRem = claudeAuth.kind === 'needs_auth' ? ` — ${claudeAuth.remediation}` : '';
+
+  // Codex
+  const codex = new CodexAdapter();
+  const codexDetected = await codex.detect();
+  // Best-effort: how many recent events did we find? Helpful for the tester
+  // to know there's actually data behind the detection.
+  let codexEventCount = 0;
+  if (codexDetected) {
+    try {
+      const events = await codex.pollOnce();
+      codexEventCount = events.length;
+    } catch {
+      /* swallow */
+    }
+  }
+
+  // Hardware
   let hwOk = false;
   let hwNote = '';
   try {
@@ -21,9 +43,6 @@ export async function runDoctor(): Promise<number> {
     hwNote = e instanceof Error ? e.message : String(e);
   }
 
-  const remediation = auth.kind === 'needs_auth' ? ` — ${auth.remediation}` : '';
-  const mode = cfg.claude.useOauth ? 'OAuth (exact %)' : 'JSONL (tokens, no keychain access)';
-
   const { unmount } = render(
     <Box flexDirection="column" borderStyle="single">
       <Box paddingX={1}>
@@ -34,25 +53,50 @@ export async function runDoctor(): Promise<number> {
           config: <Text color="cyan">{configPath()}</Text>
         </Text>
       </Box>
+
+      {/* Providers section */}
+      <Box paddingX={1} marginTop={1}>
+        <Text dimColor>providers</Text>
+      </Box>
+
+      {/* Claude */}
       <Box paddingX={1}>
         <Text>
-          Claude mode: <Text color="cyan">{mode}</Text>
+          ● Claude:{' '}
+          <Text color={claudeDetected ? 'green' : 'red'}>
+            {claudeDetected ? 'detected' : 'not installed'}
+          </Text>{' '}
+          <Text dimColor>({claudeMode})</Text>
         </Text>
       </Box>
-      <Box paddingX={1}>
-        <Text>
-          Claude detected: <Text color={detected ? 'green' : 'red'}>{detected ? 'yes' : 'no'}</Text>
-        </Text>
-      </Box>
-      {cfg.claude.useOauth ? (
+      {cfg.claude.useOauth && claudeDetected ? (
         <Box paddingX={1}>
           <Text>
-            Claude auth: <Text color={auth.kind === 'ok' ? 'green' : 'yellow'}>{auth.kind}</Text>
-            {remediation}
+            {'  '}auth:{' '}
+            <Text color={claudeAuth.kind === 'ok' ? 'green' : 'yellow'}>{claudeAuth.kind}</Text>
+            {claudeRem}
           </Text>
         </Box>
       ) : null}
+
+      {/* Codex */}
       <Box paddingX={1}>
+        <Text>
+          ● Codex:{' '}
+          <Text color={codexDetected ? 'green' : 'red'}>
+            {codexDetected ? 'detected' : 'not installed'}
+          </Text>{' '}
+          {codexDetected ? (
+            <Text dimColor>
+              ({codexEventCount} recent event{codexEventCount === 1 ? '' : 's'})
+            </Text>
+          ) : (
+            <Text dimColor>(no ~/.codex/sessions/)</Text>
+          )}
+        </Text>
+      </Box>
+
+      <Box paddingX={1} marginTop={1}>
         <Text>
           hardware: <Text color={hwOk ? 'green' : 'red'}>{hwOk ? 'ok' : 'fail'}</Text> — {hwNote}
         </Text>
@@ -60,7 +104,8 @@ export async function runDoctor(): Promise<number> {
     </Box>,
   );
   unmount();
-  // In JSONL-only mode, OAuth auth status is irrelevant.
-  const authOk = cfg.claude.useOauth ? auth.kind === 'ok' : true;
-  return detected && authOk && hwOk ? 0 : 1;
+  // "Ok" means: at least one provider detected, auth ok (if applicable), hardware ok.
+  const anyProvider = claudeDetected || codexDetected;
+  const claudeAuthOk = !cfg.claude.useOauth || !claudeDetected || claudeAuth.kind === 'ok';
+  return anyProvider && claudeAuthOk && hwOk ? 0 : 1;
 }

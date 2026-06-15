@@ -1,0 +1,5 @@
+{"timestamp":"2026-05-18T10:00:00.000Z","type":"session_meta","payload":{"id":"sess-bad","timestamp":"2026-05-18T10:00:00.000Z","cwd":"/Users/tester/proj","model_provider":"openai"}}
+not valid json
+{"timestamp":"2026-05-18T10:01:00.000Z","type":"turn_context","payload":{"turn_id":"t1","cwd":"/Users/tester/proj","model":"gpt-5-codex"}}
+{"timestamp":"2026-05-18T10:01:05.000Z","type":"event_msg","payload":{"type":"token_count","info":{"last_token_usage":{"input_tokens":100,"cached_input_tokens":50,"output_tokens":20,"reasoning_output_tokens":10,"total_tokens":180}}}}
+{"timestamp":"2026-05-18T10:01:10.000Z","type":"event_msg","payload":{"type":"task_complete"}}
