@@ -141,6 +141,23 @@ useOauth = false   # set true (or run `signal auth claude`) for exact % utilizat
 
 User-side preferences (currency, FX rate, mood thresholds, sounds, layout) are stored in browser `localStorage` per device.
 
+## Platform support
+
+| Feature | macOS | Linux | Windows |
+|---|:---:|:---:|:---:|
+| Claude adapter (JSONL) | ✅ | ✅ | ✅ |
+| Codex adapter (JSONL) | ✅ | ✅ | ✅ |
+| Terminal TUI + `signal serve` daemon | ✅ | ✅ | ✅ |
+| Web tank (any browser on Wi-Fi) | ✅ | ✅ | ✅ |
+| CPU / RAM sampling | ✅ | ✅ | ✅ |
+| Load average | ✅ | ✅ | ⚠️ reports `0` (Windows has no `loadavg`) |
+| GPU sampling | ✅ via optional `systeminformation` | ✅ via optional `systeminformation` | ✅ via optional `systeminformation` |
+| Running terminals widget | ✅ per-project (pgrep + lsof) | ✅ per-project (pgrep + lsof) | ⚠️ aggregate per provider (PowerShell + WMI; Windows doesn't expose another process's CWD without elevation) |
+| Live file watching | ✅ recursive `fs.watch` | ⚠️ non-recursive on some kernels — covered by the 5s safety poll | ✅ recursive `fs.watch` |
+| Claude OAuth (exact %) | ✅ Keychain | ❌ macOS-only | ❌ macOS-only |
+
+If anything in the ✅ column doesn't work for you, that's a bug — file an issue at [github.com/shandar/signal/issues](https://github.com/shandar/signal/issues) with the output of `signal doctor`.
+
 ## How it works
 
 `signal` reads `~/.claude/projects/*.jsonl` (Claude Code) and `~/.codex/sessions/<Y>/<M>/<D>/rollout-*.jsonl` (Codex CLI) — the same logs each CLI writes for every turn — and aggregates them in a SQLite event store at `~/.signal/events.db`. A `fs.watch` on the projects directories pushes new turns into the daemon within ~250ms, which broadcasts them to all WebSocket clients.

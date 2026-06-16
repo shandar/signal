@@ -145,9 +145,22 @@ In rough priority order. Each item is roughly its own session.
 
 ---
 
-## Known limitations / "by design"
+## Platform support matrix
 
-- Daemon detects `claude` / `codex` CLI processes via `pgrep` + `lsof`, **macOS-only currently**. Linux equivalent (`/proc/<pid>/cwd`) is straightforward to add.
-- `fs.watch` recursive support varies on Linux; the per-provider safety poll covers it.
+| Feature | macOS | Linux | Windows | Notes |
+|---|:---:|:---:|:---:|---|
+| Claude / Codex JSONL adapters | ✅ | ✅ | ✅ | Reads `~/.claude/projects/*.jsonl` + `~/.codex/sessions/<Y>/<M>/<D>/*.jsonl`. Pure filesystem; no platform calls. |
+| Terminal TUI | ✅ | ✅ | ✅ | Ink renders truecolor + unicode half-blocks. Windows Terminal renders the crab correctly; cmd.exe does not. |
+| `signal serve` daemon + web tank | ✅ | ✅ | ✅ | `Bun.serve` is cross-platform. |
+| CPU / RAM sampling | ✅ | ✅ | ✅ | `node:os` `cpus()` + `freemem()` + `totalmem()` work everywhere. |
+| Load average | ✅ | ✅ | ⚠️ | Windows has no `loadavg` concept; `node:os` returns `[0,0,0]`. Displayed as `load 0`. |
+| GPU sampling | ✅ | ✅ | ✅ | Requires the optional `systeminformation` dep (`bun add systeminformation`). |
+| **Running terminals** widget | ✅ per-CWD | ✅ per-CWD | ⚠️ aggregate | macOS/Linux use `pgrep -f` + `lsof -d cwd` for per-project grouping. Windows uses `powershell.exe` + `Get-CimInstance Win32_Process` and aggregates into one entry per provider (PID count + oldest start time). Per-CWD on Windows would require reading the target process's PEB via `NtQueryInformationProcess` — needs P/Invoke or elevation; not worth it. |
+| Live file watching | ✅ recursive | ⚠️ kernel-dependent | ✅ recursive | Linux kernels < 6.x lack recursive `fs.watch`; we always run a 5s safety poll as the backstop, so live updates still work, just at 5s granularity instead of 250ms. |
+| Claude OAuth (exact 5h %) | ✅ | ❌ | ❌ | Uses macOS `security find-generic-password` to read the Keychain entry Claude Code writes. No equivalent on Linux/Windows; falls back to JSONL token counts (which is the default for everyone anyway). |
+
+## Other known limitations / "by design"
+
 - Audio context starts suspended on mobile Safari; needs first user tap to unlock. Handled silently.
-- No persistent server-side state beyond `~/.signal/events.db` — settings persist per-browser via localStorage. Switching devices means redoing your layout. Acceptable trade for "no auth."
+- No persistent server-side state beyond `~/.signal/events.db` — settings persist per-browser via `localStorage`. Switching devices means redoing your layout. Acceptable trade for "no auth."
+- `bun build --compile --outfile=dist/signal` produces a host-platform binary. Cross-compilation needs `--target=bun-windows-x64` / `--target=bun-linux-x64` / etc. Not wired into `npm run compile` yet.
