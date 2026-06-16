@@ -174,12 +174,14 @@ The animated pixel-art crab (`web/public/clawd/*.svg` and the terminal port in `
 
 ## Status
 
-- **v0.1.0** — terminal TUI + Claude adapter (tagged release).
-- **v0.2.0** *(upcoming)* — web tank, multi-provider (Codex), live process detection, multi-surface PWA.
+Released:
+- **v0.1.0** — terminal TUI + Claude adapter.
+- **v0.2.0** — web tank, multi-provider (Codex), live process detection, multi-surface PWA.
+- **v0.2.1** *(in flight)* — Windows support validated end-to-end (process detection via PowerShell + WMI, Windows-safe SQLite, null-safe web tank, Codex JSONL walker fixed for NTFS). See the [release notes](https://github.com/shandar/signal/releases) for the full list.
 
-Follow-on plans, in priority order:
-1. **Tauri menu-bar wrapper** — `signal-bar` sits in your Mac menu bar; click opens the same web tank in a popover
-2. **Tauri borderless desktop window** — `signal-tank` floats in a corner of your screen, always-on-top
-3. **Cursor / Gemini / Copilot adapters** — multi-provider beyond Claude + Codex
-4. **ROI layer** — join the `git_commits` table to `events` for cost-per-PR
-5. **Homebrew tap + notarized binaries + npm publish workflow** — proper distribution
+Follow-on plans, in rough priority order:
+1. **Tauri menu-bar wrapper** — `signal-bar` sits in your Mac menu bar; click opens the same web tank in a popover.
+2. **Tauri borderless desktop window** — `signal-tank` floats in a corner of your screen, always-on-top.
+3. **Cursor / Gemini / Copilot adapters** — multi-provider beyond Claude + Codex.
+4. **ROI layer** — join the `git_commits` table to `events` for cost-per-PR / cost-per-shipped-line.
+5. **Homebrew tap + notarized binaries + npm publish workflow** — proper distribution. ([tracking #1](https://github.com/shandar/signal/issues/1) for ongoing platform work.)

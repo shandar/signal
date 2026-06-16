@@ -4,7 +4,8 @@
 
 **Last updated**: 2026-06-16
 **Branch**: `main` (single branch — v1 and v2 consolidated)
-**Tags**: `v0.1.0` (terminal TUI), `v0.2.0` (web tank + multi-provider, this release)
+**Tags**: `v0.1.0` (terminal TUI), `v0.2.0` (web tank + multi-provider)
+**Unreleased on `main`**: Windows support validated end-to-end — see [tracking #1](https://github.com/shandar/signal/issues/1). Tagging as `v0.2.1` next.
 
 ---
 
