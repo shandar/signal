@@ -107,7 +107,10 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
       ? { color: 'var(--warn)', label: `stale ${Math.round(staleMs / 1000)}s` }
       : { color: 'var(--ok)', label: 'live' };
 
-  if (!snapshot) {
+  // No snapshot at all, or snapshot has hardware but no provider data yet
+  // (fresh install before the first poll lands). Both render as a 'waiting'
+  // chip rather than crashing on null reads.
+  if (!snapshot || !snapshot.claude) {
     return (
       <div
         style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', zIndex: 5 }}
@@ -121,7 +124,11 @@ export function DataPanel({ snapshot, connected, staleMs = 0, onMoodHack }: Prop
             color: 'var(--dim)',
           }}
         >
-          {connected ? 'waiting for first poll…' : 'connecting to daemon…'}
+          {!connected
+            ? 'connecting to daemon…'
+            : !snapshot
+              ? 'waiting for first poll…'
+              : 'no provider data yet — run a turn in Claude or Codex to populate'}
         </div>
       </div>
     );
